@@ -1,3 +1,4 @@
+import { repositoryRouter } from "./routers/repository";
 import { createCallerFactory, createTRPCRouter, publicProcedure } from "./trpc";
 
 export const appRouter = createTRPCRouter({
@@ -9,7 +10,8 @@ export const appRouter = createTRPCRouter({
       status: "ok",
       timestamps: new Date()
     }
-  })
+  }),
+  repository: repositoryRouter,
 })
 
 export type AppRouter = typeof appRouter
