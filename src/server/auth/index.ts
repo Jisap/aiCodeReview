@@ -24,10 +24,22 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      /**
+       * Scopes (Permisos) solicitados a GitHub:
+       * - read:user: Leer perfil público.
+       * - user:email: Obtener email (necesario para el registro).
+       * - repo: Acceso completo a repositorios (necesario para listar/editar repos).
+       */
       scope: ["read:user", "user:email", "repo"],
     },
   },
   account: {
+    /**
+     * Configuración de Vinculación de Cuentas:
+     * Permite unificar usuarios si usan el mismo email en diferentes métodos (ej: Email y GitHub).
+     * - trustedProviders: Lista de proveedores seguros (como GitHub) que verifican el email,
+     *   permitiendo la vinculación automática sin pasos extra de seguridad.
+     */
     accountLinking: {
       enabled: true,
       trustedProviders: ["github"],
