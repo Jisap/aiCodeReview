@@ -113,7 +113,11 @@ export default function RepositoryDetailPage({ params }: PageProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link href={"/repos"}>
-            <Button variant={"outline"} size={"icon"} className="shrink-0">
+            <Button
+              variant={"outline"}
+              size={"icon"}
+              className="shrink-0"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -122,7 +126,10 @@ export default function RepositoryDetailPage({ params }: PageProps) {
               <h1 className="text-2xl font-semibold tracking-tight">
                 {repository.data.fullName}
               </h1>
-              <Badge variant={"outline"} className="gap-1">
+              <Badge
+                variant={"outline"}
+                className="gap-1"
+              >
                 {repository.data.private ? (
                   <>
                     <Lock className="size-3" />
