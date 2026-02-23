@@ -176,7 +176,59 @@ export default function PullRequestDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex items-center divide-x divide-border/60">
+            <div className="flex-1 p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <GitBranch className="size-4 text-muted-foreground" />
+                </div>
 
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Merged request
+                  </p>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <code className="px-2 py-0.5 rounded bg-secondary font-mono text-xs miw truncate">
+                      {pr.data.headRef}
+                    </code>
+
+                    <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                    <code className="px-2 py-0.5 rounded bg-secondary font-mono text-xs truncate">
+                      {pr.data.baseRef}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 px-6 py-4">
+              <StatItem
+                icon={Plus}
+                value={pr.data.additions}
+                colorClass="text-emerald-600 dark:text-emerald-400"
+                bgClass="bg-emerald-500/10"
+              />
+              <StatItem
+                icon={Minus}
+                value={pr.data.deletions}
+                colorClass="text-red-600 dark:text-red-400"
+                bgClass="bg-red-500/10"
+              />
+              <StatItem
+                icon={FileText}
+                value={pr.data.changedFiles}
+                colorClass="text-muted-foreground dark:text-muted-foreground"
+                bgClass="bg-muted"
+              />
+            </div>
+
+
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
   )
@@ -232,4 +284,34 @@ function PRStatusBadge({
       </Badge>
     );
   }
+}
+
+function StatItem({
+  icon: Icon,
+  value,
+  label,
+  colorClass,
+  bgClass,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  value: number;
+  label?: string;
+  colorClass: string;
+  bgClass: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={cn("p-1.5 rounded-md", bgClass)}>
+        <Icon className={cn("size-3.5", colorClass)} />
+      </div>
+      <div>
+        <p className={cn("text-sm font-semibold tabular-nums", colorClass)}>
+          {value.toLocaleString()}
+        </p>
+        {label && (
+          <p className={cn("text-xs font-medium", colorClass)}>{label}</p>
+        )}
+      </div>
+    </div>
+  );
 }
