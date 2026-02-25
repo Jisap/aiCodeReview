@@ -1,5 +1,6 @@
 import { pullRequestRouter } from "./routers/pull-request";
 import { repositoryRouter } from "./routers/repository";
+import { reviewRouter } from "./routers/review";
 import { createCallerFactory, createTRPCRouter, publicProcedure } from "./trpc";
 
 export const appRouter = createTRPCRouter({
@@ -14,6 +15,7 @@ export const appRouter = createTRPCRouter({
   }),
   repository: repositoryRouter,
   pullRequest: pullRequestRouter,
+  review: reviewRouter,
 })
 
 export type AppRouter = typeof appRouter

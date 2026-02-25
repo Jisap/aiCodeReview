@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DiffViewer } from "@/components/diff-viewer";
+import { ReviewResult } from "@/components/review-result";
 
 
 type PageProps = {
@@ -35,13 +36,13 @@ type PageProps = {
 };
 
 export default function PullRequestDetailPage({ params }: PageProps) {
-  const { id, prNumber } = use(params);
-  const prNum = parseInt(prNumber, 10);
-  const [activeTab, setActiveTab] = useState<"review" | "files">("review");
+  const { id, prNumber } = use(params);                                        // Desempaqueta los parámetros de la URL (ID repo y número PR).
+  const prNum = parseInt(prNumber, 10);                                        // Convierte el número de PR a entero para la API.
+  const [activeTab, setActiveTab] = useState<"review" | "files">("review");    // Estado para controlar la pestaña activa.
 
-  const pr = trpc.pullRequest.get.useQuery(
+  const pr = trpc.pullRequest.get.useQuery(                                    // Consulta tRPC para obtener los detalles del PR.
     { repositoryId: id, prNumber: prNum },
-    { enabled: !isNaN(prNum) },
+    { enabled: !isNaN(prNum) },                                                // Solo ejecuta si el número de PR es válido.
   );
 
   if (pr.isLoading) {
@@ -81,14 +82,37 @@ export default function PullRequestDetailPage({ params }: PageProps) {
     );
   }
 
-  const isMerged = pr.data.state === "closed" && pr.data.mergedAt;
+  const isMerged = pr.data.state === "closed" && pr.data.mergedAt;             // Determina si el PR fue fusionado.
 
-  const files = trpc.pullRequest.files.useQuery(
+  const files = trpc.pullRequest.files.useQuery(                               // Consulta para obtener los archivos modificados.
     { repositoryId: id, prNumber: prNum },
     { enabled: !isNaN(prNum) },
   );
 
+  const latestReview = trpc.review.getLatestForPR.useQuery(                    // Obtiene la última revisión de IA para este PR.
+    { repositoryId: id, prNumber: prNum },
+    {
+      enabled: !isNaN(prNum),
+      refetchInterval: (query) => {                                             // Configura polling para actualizar el estado de la revisión.
+        const status = query.state.data?.status;
+        if (status === "PENDING" || status === "PROCESSING") {
+          return 2000;                                                          // Si está en proceso, refresca cada 2 segundos.
+        }
+        return false;                                                           // Si terminó, detiene el refresco automático.
+      },
+    },
+  );
 
+  const triggerReview = trpc.review.trigger.useMutation({                       // Mutación para disparar una nueva revisión de IA.
+    onSuccess: () => {
+      latestReview.refetch();                                                   // Recarga la revisión para mostrar el estado 'PENDING'.
+      pr.refetch();                                                             // Recarga los datos del PR.
+    },
+  });
+
+  const isReviewing =                                                           // Bandera para saber si se está analizando el código actualmente.
+    latestReview.data?.status === "PENDING" ||
+    latestReview.data?.status === "PROCESSING";
 
   return (
     <div className="space-y-8">
@@ -227,6 +251,38 @@ export default function PullRequestDetailPage({ params }: PageProps) {
             </div>
 
             {/* Todo: Review action cluster */}
+            <div className="px-6 py-4 flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg px-3 py-1.5">
+                <ReviewStatusBadge
+                  status={latestReview.data?.status ?? null}
+                  completedAt={
+                    latestReview.data?.status === "COMPLETED"
+                      ? latestReview.data.createdAt
+                      : null
+                  }
+                />
+
+                {!isReviewing && <div className="h-4 w-px bg-border" />}
+
+                {isReviewing ? null : (
+                  <Button
+                    variant="outline"
+                    size={"sm"}
+                    onClick={() => {
+                      triggerReview.mutate({
+                        repositoryId: id,
+                        prNumber: prNum,
+                      });
+                    }}
+                    disabled={triggerReview.isPending}
+                    className="gap-1.5 h-auto py-1 px-2 text-xs"
+                  >
+                    <Wand2 />
+                    {latestReview.data ? "Re-run" : "Review"}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -234,19 +290,19 @@ export default function PullRequestDetailPage({ params }: PageProps) {
       {/* Tabs */}
       <div className="border-b border-border/60">
         <div className="flex items-center gap-1">
-          {/* <TabButton
+          <TabButton
             active={activeTab === "review"}
             onClick={() => setActiveTab("review")}
             icon={ScanSearch}
             label="Reviews"
-             count={
-             latestReview.data?.status === "COMPLETED"
-                 ? Array.isArray(latestReview.data.comments)
-                   ? latestReview.data.comments.length
-                   : 0
-                 : 0
-              }
-          /> */}
+            count={
+              latestReview.data?.status === "COMPLETED"
+                ? Array.isArray(latestReview.data.comments)
+                  ? latestReview.data.comments.length
+                  : 0
+                : 0
+            }
+          />
 
           <TabButton
             active={activeTab === "files"}
@@ -259,6 +315,37 @@ export default function PullRequestDetailPage({ params }: PageProps) {
       </div>
 
       {/* tab-content */}
+      {activeTab === "review" && (
+        <div>
+          {latestReview.data ? (
+            <ReviewResult review={latestReview.data} />
+          ) : (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <div className="mx-auto size-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ScanSearch className="size-7 text-primary" />
+                </div>
+                <p className="mt-4 font-medium">No reviews yet.</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+                  Click &quot;Run AI Review&quot; to analyze this pull request
+                  for bugs, security issues, and improvements.
+                </p>
+                <Button
+                  className="mt-6"
+                  onClick={() =>
+                    triggerReview.mutate({ repositoryId: id, prNumber: prNum })
+                  }
+                  disabled={triggerReview.isPending}
+                >
+                  Run AI Review
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+
       {activeTab === "files" && (
         <div>
           {files.isLoading ? (
@@ -414,5 +501,81 @@ function TabButton({
         <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
       )}
     </button>
+  );
+}
+
+function ReviewStatusBadge({
+  status,
+  completedAt,
+}: {
+  status: string | null;
+  completedAt?: Date | null;
+}) {
+  const getTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(date).getTime();
+    const diffMin = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin} min ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (!status) {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1.5 border bg-muted text-muted-foreground"
+      >
+        <Clock className="h-3 w-3" />
+        Not reviewed
+      </Badge>
+    );
+  }
+
+  const config = {
+    COMPLETED: {
+      icon: CheckCircle,
+      label: completedAt
+        ? `AI Review completed · ${getTimeAgo(completedAt)}`
+        : "AI Review completed",
+      className:
+        "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    PROCESSING: {
+      icon: Loader2,
+      label: "Analyzing code…",
+      className:
+        "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      spin: true,
+    },
+    PENDING: {
+      icon: Clock,
+      label: "Queued for review",
+      className:
+        "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    },
+    FAILED: {
+      icon: XCircle,
+      label: "Review failed",
+      className:
+        "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+    },
+  }[status] ?? {
+    icon: Clock,
+    label: "Not reviewed",
+    className: "bg-muted text-muted-foreground",
+  };
+
+  const Icon = config.icon;
+
+  return (
+    <Badge variant="outline" className={cn("gap-1.5 border", config.className)}>
+      <Icon className={cn("h-3 w-3", config.spin && "animate-spin")} />
+      {config.label}
+    </Badge>
   );
 }
