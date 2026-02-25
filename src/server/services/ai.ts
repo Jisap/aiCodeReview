@@ -1,28 +1,30 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-let openaiClient: OpenAI | null = null;
+let openaiClient: OpenAI | null = null;                                // Variable para mantener una única instancia del cliente de OpenAI (patrón Singleton).
 
-function getOpenAIClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+function getOpenAIClient(): OpenAI {                                   // Función para obtener el cliente de OpenAI.
+  const apiKey = process.env.OPENAI_API_KEY;                           // Obtiene la API key de las variables de entorno.
+  if (!apiKey) {                                                       // Lanza un error si la clave no está configurada.
     throw new Error("OPENAI_API_KEY is not set");
   }
 
-  if (!openaiClient) {
+  if (!openaiClient) {                                                 // Si el cliente no ha sido inicializado, lo crea.
     openaiClient = new OpenAI({ apiKey });
   }
 
-  return openaiClient;
+  return openaiClient;                                                 // Devuelve la instancia del cliente.
 }
 
+// Define el esquema de validación para un 
+// comentario de revisión usando Zod.
 export const ReviewCommentSchema = z.object({
-  file: z.string(),
-  line: z.number(),
-  severity: z.enum(["critical", "high", "medium", "low"]),
-  category: z.enum(["bug", "security", "performance", "style", "suggestion"]),
-  message: z.string(),
-  suggestion: z.string().optional(),
+  file: z.string(),                                                    // Nombre del archivo comentado.
+  line: z.number(),                                                    // Línea específica del comentario.
+  severity: z.enum(["critical", "high", "medium", "low"]),             // Nivel de severidad del problema.
+  category: z.enum(["bug", "security", "performance", "style", "suggestion"]), // Categoría del problema.
+  message: z.string(),                                                 // Mensaje explicando el problema.
+  suggestion: z.string().optional(),                                   // Sugerencia de cómo solucionarlo (opcional).
 });
 
 export const ReviewResultSchema = z.object({
@@ -31,6 +33,8 @@ export const ReviewResultSchema = z.object({
   comments: z.array(ReviewCommentSchema),
 });
 
+// Exporta los tipos inferidos de los esquemas 
+// de Zod para usarlos en el código.
 export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 
@@ -42,7 +46,9 @@ interface FileChange {
   patch?: string;
 }
 
-const SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the provided pull request diff and provide a structured review.
+// Prompt del sistema que instruye a la IA sobre cómo debe 
+// comportarse y qué formato de respuesta debe usar.
+const SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the provided pull request diff and provide a structured review. 
 
 Your review should:
 1. Identify bugs, security issues, performance problems, and code style issues
@@ -74,18 +80,18 @@ Severity guide:
 
 Be concise but specific. Reference exact line numbers from the diff.`;
 
-export async function reviewCode(
+export async function reviewCode(                                      // Función principal que interactúa con la API de OpenAI para revisar el código.
   prTitle: string,
   files: FileChange[],
 ): Promise<ReviewResult> {
-  const diffContent = files
-    .filter((f) => f.patch)
+  const diffContent = files                                            // Concatena los parches de todos los archivos modificados en un solo string.
+    .filter((f) => f.patch)                                            // Filtra archivos que no tienen parche (ej. binarios).
     .map(
       (f) => `### ${f.filename} (${f.status})\n\`\`\`diff\n${f.patch}\n\`\`\``,
     )
     .join("\n\n");
 
-  if (!diffContent.trim()) {
+  if (!diffContent.trim()) {                                           // Si no hay cambios de código (diff vacío), retorna un resultado por defecto.
     return {
       summary: "No code changes to review (binary files or empty diff).",
       riskScore: 0,
@@ -93,32 +99,32 @@ export async function reviewCode(
     };
   }
 
-  const userPrompt = `Review this pull request:
+  const userPrompt = `Review this pull request: // Construye el prompt del usuario con el título del PR y el contenido del diff.
 
 **Title:** ${prTitle}
 
 **Changes:**
 ${diffContent}`;
 
-  const openai = getOpenAIClient();
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+  const openai = getOpenAIClient();                                    // Obtiene el cliente de OpenAI.
+  const response = await openai.chat.completions.create({              // Realiza la llamada a la API de Chat Completions.
+    model: "gpt-4o-mini",                                              // Modelo de IA a utilizar.
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
+      { role: "system", content: SYSTEM_PROMPT },                      // El prompt del sistema con las instrucciones.
+      { role: "user", content: userPrompt },                           // El prompt del usuario con los datos del PR.
     ],
-    response_format: { type: "json_object" },
-    temperature: 0.3,
-    max_tokens: 2000,
+    response_format: { type: "json_object" },                          // Fuerza a la IA a responder en formato JSON.
+    temperature: 0.3,                                                  // Controla la "creatividad" de la respuesta. Un valor bajo la hace más determinista.
+    max_tokens: 2000,                                                  // Límite de tokens para la respuesta.
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = response.choices[0]?.message?.content;               // Extrae el contenido de la respuesta de la IA.
   if (!content) {
     throw new Error("No response from AI");
   }
 
-  const parsed = JSON.parse(content);
-  const validated = ReviewResultSchema.parse(parsed);
+  const parsed = JSON.parse(content);                                  // Parsea la respuesta JSON.
+  const validated = ReviewResultSchema.parse(parsed);                  // Valida la estructura del JSON con Zod.
 
-  return validated;
+  return validated;                                                    // Retorna el resultado validado.
 }

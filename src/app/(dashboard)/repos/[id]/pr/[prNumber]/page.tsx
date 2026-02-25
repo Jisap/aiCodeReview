@@ -250,7 +250,7 @@ export default function PullRequestDetailPage({ params }: PageProps) {
               />
             </div>
 
-            {/* Todo: Review action cluster */}
+            {/* Review action cluster */}
             <div className="px-6 py-4 flex items-center gap-3">
               <div className="flex items-center gap-2 rounded-lg px-3 py-1.5">
                 <ReviewStatusBadge
@@ -325,11 +325,14 @@ export default function PullRequestDetailPage({ params }: PageProps) {
                 <div className="mx-auto size-14 rounded-full bg-primary/10 flex items-center justify-center">
                   <ScanSearch className="size-7 text-primary" />
                 </div>
+
                 <p className="mt-4 font-medium">No reviews yet.</p>
+
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
                   Click &quot;Run AI Review&quot; to analyze this pull request
                   for bugs, security issues, and improvements.
                 </p>
+
                 <Button
                   className="mt-6"
                   onClick={() =>

@@ -46,8 +46,24 @@ interface ReviewResultProps {
   };
 }
 
+/**
+ * Componente que muestra el resultado de la revisión.
+ * @param param0 ReviewResultProps
+ * @returns ReviewResult
+ * 
+ * Este componente es responsable de renderizar los resultados de la revisión de código de la IA. Su lógica principal es:
+
+  1º Manejo de Estados: Muestra diferentes interfaces de usuario según el status de la revisión: PENDING (en cola), PROCESSING (analizando), FAILED (fallido) o COMPLETED (completado).
+  2º Visualización de Resultados: Cuando la revisión está COMPLETED, presenta un dashboard completo que incluye:
+  - Una puntuación de riesgo general con una barra de progreso visual.
+  - Un desglose por severidad que muestra el total de issues y una barra de distribución con los diferentes niveles de severidad (crítico, alto, medio, bajo).
+  - Un resumen de la IA si está disponible.
+  3º Lista de Comentarios: Si se encontraron issues, los muestra en una lista de tarjetas (CommentCard). Cada tarjeta es expandible, muestra el mensaje, la severidad, la categoría, el archivo/línea afectado y una sugerencia de corrección.
+  4º Componentes Auxiliares: Utiliza varios subcomponentes y funciones de ayuda para mantener el código organizado y legible, como RiskScoreSection, SeverityDistributionBar, getRiskConfig, etc.
+ */
+
 export function ReviewResult({ review }: ReviewResultProps) {
-  if (review.status === "PENDING") {
+  if (review.status === "PENDING") { // Muestra un estado de "en cola" si la revisión está pendiente.
     return (
       <Card>
         <CardContent className="py-12 px-6">
@@ -55,12 +71,14 @@ export function ReviewResult({ review }: ReviewResultProps) {
             <div className="size-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
               <Clock className="size-5 text-amber-500" />
             </div>
+
             <div className="flex-1 min-w-0">
               <h3 className="font-medium">Queued for review</h3>
               <p className="text-sm text-muted-foreground mt-0.5">
                 This review is queued for review and will be processed soon.
               </p>
             </div>
+
             <div className="flex items-center gap-1">
               {[0, 1, 2].map((i) => (
                 <div
@@ -76,7 +94,7 @@ export function ReviewResult({ review }: ReviewResultProps) {
     );
   }
 
-  if (review.status === "PROCESSING") {
+  if (review.status === "PROCESSING") { // Muestra un estado de "procesando" con una animación de carga.
     return (
       <Card>
         <CardContent className="py-12 px-6">
@@ -91,6 +109,7 @@ export function ReviewResult({ review }: ReviewResultProps) {
                   strokeWidth="3"
                   className="stroke-muted"
                 />
+
                 <circle
                   cx="20"
                   cy="20"
@@ -106,6 +125,7 @@ export function ReviewResult({ review }: ReviewResultProps) {
                   }}
                 />
               </svg>
+
               <style jsx>{`
                 @keyframes spin {
                   to {
@@ -114,12 +134,14 @@ export function ReviewResult({ review }: ReviewResultProps) {
                 }
               `}</style>
             </div>
+
             <div className="flex-1 min-w-0">
               <h3 className="font-medium">Analysing code</h3>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Scanning for bugs, security issues, and improvements
               </p>
             </div>
+
             <span className="text-xs text-muted-foreground tabular-nums">
               ~20s
             </span>
@@ -129,7 +151,7 @@ export function ReviewResult({ review }: ReviewResultProps) {
     );
   }
 
-  if (review.status === "FAILED") {
+  if (review.status === "FAILED") { // Muestra un mensaje de error si la revisión falló.
     return (
       <Card className="overflow-hidden border-destructive/20">
         <CardContent className="p-0">
@@ -140,12 +162,15 @@ export function ReviewResult({ review }: ReviewResultProps) {
               <div className="mx-auto size-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center mb-6">
                 <XCircle className="size-8 text-destructive" />
               </div>
+
               <h3 className="text-lg font-semibold text-destructive">
                 Failed to review code
               </h3>
+
               <p className="text-sm text-muted-foreground">
                 {review.error || "Please try again later or contact support"}
               </p>
+
               <Button variant={"outline"} className="mt-6">
                 Retry Analysis
               </Button>
@@ -156,18 +181,18 @@ export function ReviewResult({ review }: ReviewResultProps) {
     );
   }
 
-  const comments = Array.isArray(review.comments)
+  const comments = Array.isArray(review.comments) // Asegura que los comentarios sean un array para evitar errores.
     ? (review.comments as ReviewComment[])
     : [];
 
-  const severityCounts = {
+  const severityCounts = { // Calcula el número de issues por severidad.
     critical: comments.filter((c) => c.severity === "critical").length,
     high: comments.filter((c) => c.severity === "high").length,
     medium: comments.filter((c) => c.severity === "medium").length,
     low: comments.filter((c) => c.severity === "low").length,
   };
 
-  const totalIssues = comments.length;
+  const totalIssues = comments.length; // Número total de issues encontrados.
 
   return (
     <div className="space-y-6">
@@ -182,6 +207,7 @@ export function ReviewResult({ review }: ReviewResultProps) {
               <h3 className="text-sm font-medium text-muted-foreground">
                 Severity Breakdown
               </h3>
+
               <div
                 className={cn(
                   "flex items-center justify-center min-w-[2.5rem] px-3 py-1.5 rounded-lg",
@@ -201,13 +227,13 @@ export function ReviewResult({ review }: ReviewResultProps) {
               </div>
             </div>
 
-            <SeverityDistributionBar
+            <SeverityDistributionBar // Componente para la barra de distribución de severidad.
               counts={severityCounts}
               total={totalIssues}
             />
 
             <div className="flex items-center gap-4 mt-4 flex-wrap">
-              <SeverityLegendItem
+              <SeverityLegendItem // Componente para la leyenda de severidad.
                 label="Critical"
                 count={severityCounts.critical}
                 color="bg-red-500"
@@ -230,13 +256,14 @@ export function ReviewResult({ review }: ReviewResultProps) {
             </div>
           </div>
 
-          {review.summary && (
+          {review.summary && ( // Muestra el resumen de la IA si existe.
             <>
               <div className="h-px bg-border/60" />
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">
                   AI Summary
                 </h3>
+
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {review.summary}
                 </p>
@@ -246,12 +273,13 @@ export function ReviewResult({ review }: ReviewResultProps) {
         </CardContent>
       </Card>
 
-      {comments.length > 0 ? (
+      {comments.length > 0 ? ( // Si hay comentarios, los muestra.
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-medium text-muted-foreground">
               Review Comments
             </h2>
+
             <span className="text-xs text-muted-foreground tabular-nums">
               {comments.length} {comments.length === 1 ? "issue" : "issues"}
             </span>
@@ -259,18 +287,18 @@ export function ReviewResult({ review }: ReviewResultProps) {
 
           <div className="space-y-2">
             {comments.map((comment, index) => (
-              <CommentCard key={index} comment={comment} index={index} />
+              <CommentCard key={index} comment={comment} index={index} /> // Renderiza una tarjeta por cada comentario.
             ))}
           </div>
         </div>
       ) : (
-        review.status === "COMPLETED" && <NoIssuesCard />
+        review.status === "COMPLETED" && <NoIssuesCard /> // Si no hay issues, muestra una tarjeta de éxito.
       )}
     </div>
   );
 }
 
-function NoIssuesCard() {
+function NoIssuesCard() { // Componente que se muestra cuando no se encuentran issues.
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -281,7 +309,9 @@ function NoIssuesCard() {
             <div className="mx-auto size-16 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6">
               <CheckCircle2 className="size-8 text-emerald-500" />
             </div>
+
             <h3>Looking Good!</h3>
+
             <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
               No issues were found. Your code follows best practices and appears
               to be well-written.
@@ -293,19 +323,19 @@ function NoIssuesCard() {
   );
 }
 
-function CommentCard({
+function CommentCard({ // Componente para mostrar un único comentario de la revisión.
   comment,
   index,
 }: {
   comment: ReviewComment;
   index: number;
 }) {
-  const [expanded, setExpanded] = useState(index < 3);
-  const [copied, setCopied] = useState(false);
-  const CategoryIcon = getCategoryIcon(comment.category);
-  const severityConfig = getSeverityStyles(comment.severity);
+  const [expanded, setExpanded] = useState(index < 3);        // Por defecto, expande los 3 primeros comentarios.
+  const [copied, setCopied] = useState(false);                // Estado para feedback de "copiado".
+  const CategoryIcon = getCategoryIcon(comment.category);     // Obtiene el ícono según la categoría.
+  const severityConfig = getSeverityStyles(comment.severity); // Obtiene los estilos según la severidad.
 
-  const copyLocation = () => {
+  const copyLocation = () => { // Función para copiar la ubicación del archivo y línea.
     navigator.clipboard.writeText(`${comment.file}:${comment.line}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -318,14 +348,14 @@ function CommentCard({
   return (
     <Card>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setExpanded(!expanded)} // Permite expandir/colapsar la tarjeta.
         className="w-full text-left"
       >
         <div className="p-4 flex items-start gap-3">
           <div
             className={cn(
               "my-0.5 w-1 h-12 rounded-full shrink-0",
-              severityConfig.bar,
+              severityConfig.bar, // Barra de color que indica la severidad.
             )}
           />
 
@@ -335,13 +365,13 @@ function CommentCard({
                 variant={"outline"}
                 className={cn(
                   "text-[10px] uppercase tracking-wider font-semibold",
-                  severityConfig.badge,
+                  severityConfig.badge, // Badge de color que indica la severidad.
                 )}
               >
                 {comment.severity}
               </Badge>
 
-              {comment.category && (
+              {comment.category && ( // Muestra la categoría si existe.
                 <Badge variant={"secondary"} className="gap-1 text-xs">
                   {React.createElement(CategoryIcon, {
                     className: "size-3",
@@ -362,7 +392,7 @@ function CommentCard({
             <p
               className={cn(
                 "text-sm leading-relaxed",
-                !expanded && "line-clamp-2",
+                !expanded && "line-clamp-2", // Trunca el mensaje si no está expandido.
               )}
             >
               {comment.message}
@@ -370,7 +400,7 @@ function CommentCard({
 
             <button
               onClick={(e) => {
-                e.stopPropagation();
+                e.stopPropagation(); // Evita que el click en el nombre del archivo colapse la tarjeta.
                 copyLocation();
               }}
               className="group/file inline-flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
@@ -380,7 +410,7 @@ function CommentCard({
               <span className="font-medium text-foreground ">{fileName}</span>
               <span className="text-foreground">:</span>
               <span className="text-primary font-medium">{comment.line}</span>
-              {copied ? (
+              {copied ? ( // Muestra un check si se ha copiado.
                 <Check className="size-3.5 text-emerald-500" />
               ) : (
                 <Copy className="size-3.5 opacity-0 group-hover/file:opacity-100 trantransition-opacity" />
@@ -390,13 +420,14 @@ function CommentCard({
         </div>
       </button>
 
-      {expanded && comment.suggestion && (
+      {expanded && comment.suggestion && ( // Muestra la sugerencia si la tarjeta está expandida.
         <div className="px-4 pb-4">
           <div className="ml-4 rounded-lg bg-linear-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1 rounded-md bg-emerald-500/20">
                 <Lightbulb className="size-3.5 text-emerald-500" />
               </div>
+
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                 Suggested Fix
               </span>
@@ -409,14 +440,14 @@ function CommentCard({
   );
 }
 
-function SeverityDistributionBar({
+function SeverityDistributionBar({ // Componente para la barra visual de distribución de severidad.
   counts,
   total,
 }: {
   counts: { critical: number; high: number; medium: number; low: number };
   total: number;
 }) {
-  if (total === 0) {
+  if (total === 0) { // Si no hay issues, muestra una barra verde completa.
     return (
       <div className="h-2 bg-emerald-500/20 rounded-full overflow-hidden">
         <div className="w-full h-full bg-emerald-500 rounded-full" />
@@ -424,7 +455,7 @@ function SeverityDistributionBar({
     );
   }
 
-  const getWidth = (count: number) => `${(count / total) * 100}%`;
+  const getWidth = (count: number) => `${(count / total) * 100}%`; // Calcula el ancho de cada segmento.
 
   return (
     <div className="h-2 bg-muted rounded-full overflow-hidden flex">
@@ -456,7 +487,7 @@ function SeverityDistributionBar({
   );
 }
 
-function SeverityLegendItem({
+function SeverityLegendItem({ // Componente para un item de la leyenda de severidad.
   label,
   count,
   color,
@@ -474,8 +505,8 @@ function SeverityLegendItem({
   );
 }
 
-function RiskScoreSection({ score }: { score: number }) {
-  const config = getRiskConfig(score);
+function RiskScoreSection({ score }: { score: number }) { // Componente para la sección de puntuación de riesgo.
+  const config = getRiskConfig(score); // Obtiene estilos y etiquetas según la puntuación.
 
   return (
     <div className="space-y-4">
@@ -483,6 +514,7 @@ function RiskScoreSection({ score }: { score: number }) {
         <h3 className="text-sm font-medium text-muted-foreground">
           Risk Score
         </h3>
+
         <div
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
@@ -508,14 +540,15 @@ function RiskScoreSection({ score }: { score: number }) {
         <div
           className="absolute inset-y-0 left-0 rounded-full bg-linear-to-r from-emerald-500 via-amber-500 to-red-500"
           style={{
-            width: `${score}%`,
+            width: `${score}%`, // El ancho de la barra representa la puntuación.
             transition: "width 0.3s ease-in-out",
           }}
         />
+
         <div
           className="absolute top-1/2 size-3.5 rounded-full bg-background border-2 shadow-md"
           style={{
-            left: `${Math.min(Math.max(score, 2), 98)}%`,
+            left: `${Math.min(Math.max(score, 2), 98)}%`, // Posición del marcador en la barra.
             transform: "translateX(-50%) translateY(-50%)",
             borderColor: config.markerColor,
             transition: "left 0.3s ease-in-out",
@@ -531,7 +564,7 @@ function RiskScoreSection({ score }: { score: number }) {
   );
 }
 
-function getRiskConfig(score: number) {
+function getRiskConfig(score: number) { // Devuelve configuración de estilo basada en la puntuación de riesgo.
   if (score < 25) {
     return {
       color: "text-emerald-600 dark:text-emerald-400",
@@ -572,7 +605,7 @@ function getRiskConfig(score: number) {
   };
 }
 
-function getSeverityStyles(severity: string) {
+function getSeverityStyles(severity: string) { // Devuelve clases de CSS basadas en la severidad del comentario.
   switch (severity) {
     case "critical":
       return {
@@ -599,7 +632,7 @@ function getSeverityStyles(severity: string) {
   }
 }
 
-function getCategoryIcon(category?: string) {
+function getCategoryIcon(category?: string) { // Devuelve un componente de ícono basado en la categoría del comentario.
   switch (category) {
     case "bug":
       return Bug;
